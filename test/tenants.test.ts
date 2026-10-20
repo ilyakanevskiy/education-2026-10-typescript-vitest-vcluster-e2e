@@ -102,7 +102,7 @@ describe(`isolation between tenants ${TENANT_A} and ${TENANT_B}`, () => {
   it('a workload created directly on the host does not show up in any tenant', async ({ onTestFinished }) => {
     const id = suffix();
     const namespace = `host-only-${id}`;
-    const name = 'workload';
+    const name = `workload-${id}`;
     const label = `e2e.local/host-only=${id}`;
 
     await hostCluster.core.createNamespace({ body: { metadata: { name: namespace } } });
