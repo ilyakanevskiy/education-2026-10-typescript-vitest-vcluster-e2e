@@ -39,25 +39,22 @@ What the manual exploration and the tests showed on this setup:
   SubjectAccessReview for `team-b`'s syncer service account allows listing pods in
   `vcluster-team-b` and denies listing pods and reading secrets in `vcluster-team-a`.
 
-Every test was also run against a deliberately broken expectation, to confirm it fails
-with a message that names the cause: `team-b`'s client pointed at `team-a`, a wrong
-`managed-by` label, a wrong syncer service account, the host's API queried in place of
-a tenant's, policy objects and Pod Security labels looked up in `team-a`, which runs
-without isolation mode, a cpu request within the limit, a non-privileged pod.
-
 ## Tests
 
-| File | Test |
-|---|---|
-| [`sync.test.ts`](test/sync.test.ts) — pod sync in `team-a` | A pod created in the vCluster gets a copy in the host namespace, both reach `Running`, and deleting the pod in the vCluster removes the host copy |
-| [`tenants.test.ts`](test/tenants.test.ts) — isolation between `team-a` and `team-b` | A namespace created in `team-a` is not visible in `team-b` |
-| | `team-b`'s syncer service account may list pods in its own host namespace, but neither list pods nor read secrets in `team-a`'s (SubjectAccessReview) |
-| | A CRD installed in `team-a` exists neither in `team-b` nor on the host |
-| | A namespace with a pod created directly on the host shows up in neither tenant |
-| [`isolation.test.ts`](test/isolation.test.ts) — isolation mode in `iso` | The host namespace has the vCluster's ResourceQuota, LimitRange and NetworkPolicy |
-| | Existing and new namespaces carry `pod-security.kubernetes.io/enforce=baseline` |
-| | A plain pod runs; a pod requesting more cpu than the default limit is accepted by the vCluster but never synced to the host — a `SyncError` event names the LimitRange violation |
-| | A privileged pod is rejected by the vCluster's API server with 403 and exists on neither side |
+Each test was also run against the broken expectation in the last column, to confirm
+it fails with a message that names the cause.
+
+| File | Test | Broken on purpose |
+|---|---|---|
+| [`sync.test.ts`](test/sync.test.ts) — pod sync in `team-a` | A pod created in the vCluster gets a copy in the host namespace, both reach `Running`, and deleting the pod in the vCluster removes the host copy | Wrong `managed-by` label in the host copy lookup |
+| [`tenants.test.ts`](test/tenants.test.ts) — isolation between `team-a` and `team-b` | A namespace created in `team-a` is not visible in `team-b` | `team-b`'s client pointed at `team-a` |
+| | `team-b`'s syncer service account may list pods in its own host namespace, but neither list pods nor read secrets in `team-a`'s (SubjectAccessReview) | Wrong service account name; `team-b`'s own namespace checked in place of `team-a`'s |
+| | A CRD installed in `team-a` exists neither in `team-b` nor on the host | `team-b`'s client pointed at `team-a` |
+| | A namespace with a pod created directly on the host shows up in neither tenant | The host's API queried in place of a tenant's, for the namespace and for the pod |
+| [`isolation.test.ts`](test/isolation.test.ts) — isolation mode in `iso` | The host namespace has the vCluster's ResourceQuota, LimitRange and NetworkPolicy | `team-a`'s host namespace, which has none; a wrong LimitRange name; a wrong NetworkPolicy name |
+| | Existing and new namespaces carry `pod-security.kubernetes.io/enforce=baseline` | `default` read from `team-a`; `restricted` expected on the new namespace |
+| | A plain pod runs; a pod requesting more cpu than the default limit is accepted by the vCluster but never synced to the host — a `SyncError` event names the LimitRange violation | A cpu request of `500m`, within the limit |
+| | A privileged pod is rejected by the vCluster's API server with 403 and exists on neither side | `privileged: false` |
 
 Each test creates its resources under a random suffix and removes them afterwards,
 also when it fails. Files run one after another, since they share the same clusters.
