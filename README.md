@@ -67,6 +67,16 @@ also when it fails. Files run one after another, since they share the same clust
 - The host has a single node, so node failures and scheduling across nodes are out of
   scope.
 
+## Next steps
+
+- **Automated environment.** Create the `kind` cluster and the vClusters from code
+  instead of the manual commands in [Setup](#setup), so a run starts from a known
+  state.
+- **CI.** Run the suite in GitHub Actions on a `kind` cluster for every change, with
+  the environment created in the job.
+- **vind.** Cover Private Nodes through vind (vCluster in Docker). With no host
+  cluster there, the tests check the tenant side only, such as the tenant's own nodes.
+
 ## Prerequisites
 
 Versions the tests were run with; nearby versions should work too.
