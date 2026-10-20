@@ -64,6 +64,10 @@ also when it fails. Files run one after another, since they share the same clust
 - The NetworkPolicy is checked for presence only, not for actually blocking traffic.
 - "Never synced" and "never shows up in a tenant" are checked at one point in time,
   after the related pod or event appeared, not proven for all time.
+- vCluster's source also checks Pod Security in the syncer, before it creates a host
+  copy. The tests don't reach that check: a privileged pod would first have to get past
+  the vCluster's PodSecurity admission, and when a tenant relabels a namespace to
+  `privileged`, vCluster restores `baseline` before the next request reads the label.
 - The host has a single node, so node failures and scheduling across nodes are out of
   scope.
 
