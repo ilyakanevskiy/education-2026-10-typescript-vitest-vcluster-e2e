@@ -82,12 +82,15 @@ describe(`isolation between tenants ${TENANT_A} and ${TENANT_B}`, () => {
       },
     };
     const extensions = (cluster: Cluster) => cluster.kubeConfig.makeApiClient(ApiextensionsV1Api);
+    const inA = extensions(a);
+    const inB = extensions(b);
+    const onHost = extensions(hostCluster);
 
-    await extensions(a).createCustomResourceDefinition({ body: crd });
-    onTestFinished(() => deleteIfExists(() => extensions(a).deleteCustomResourceDefinition({ name })));
+    await inA.createCustomResourceDefinition({ body: crd });
+    onTestFinished(() => deleteIfExists(() => inA.deleteCustomResourceDefinition({ name })));
 
     await poll(`CRD ${name} to become Established in ${TENANT_A}`, async () => {
-      const current = await readOrNull(() => extensions(a).readCustomResourceDefinition({ name }));
+      const current = await readOrNull(() => inA.readCustomResourceDefinition({ name }));
       if (!current) return pending('404');
       const established = current.status?.conditions?.find((c) => c.type === 'Established');
       return established?.status === 'True'
@@ -95,8 +98,8 @@ describe(`isolation between tenants ${TENANT_A} and ${TENANT_B}`, () => {
         : pending(`Established=${established?.status ?? '<none>'}`);
     });
 
-    expect(await readOrNull(() => extensions(b).readCustomResourceDefinition({ name })), `CRD in ${TENANT_B}`).toBeNull();
-    expect(await readOrNull(() => extensions(hostCluster).readCustomResourceDefinition({ name })), 'CRD on the host').toBeNull();
+    expect(await readOrNull(() => inB.readCustomResourceDefinition({ name })), `CRD in ${TENANT_B}`).toBeNull();
+    expect(await readOrNull(() => onHost.readCustomResourceDefinition({ name })), 'CRD on the host').toBeNull();
   });
 
   it('a workload created directly on the host does not show up in any tenant', async ({ onTestFinished }) => {
