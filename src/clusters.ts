@@ -12,7 +12,6 @@ export const vclusterContext = (vcluster: string): string =>
 
 export interface Cluster {
   context: string;
-  server: string;
   kubeConfig: KubeConfig;
   core: CoreV1Api;
 }
@@ -30,11 +29,10 @@ export function connect(context: string): Cluster {
     throw new Error(`kubeconfig has no context "${context}"`);
   }
   kubeConfig.setCurrentContext(context);
-  const server = kubeConfig.getCluster(contextObject.cluster)?.server;
-  if (!server) {
+  if (!kubeConfig.getCluster(contextObject.cluster)?.server) {
     throw new Error(`context "${context}" points at cluster "${contextObject.cluster}" without a server URL`);
   }
-  return { context, server, kubeConfig, core: kubeConfig.makeApiClient(CoreV1Api) };
+  return { context, kubeConfig, core: kubeConfig.makeApiClient(CoreV1Api) };
 }
 
 export const host = (): Cluster => connect(HOST_CONTEXT);

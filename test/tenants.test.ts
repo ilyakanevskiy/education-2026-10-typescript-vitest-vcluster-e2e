@@ -17,13 +17,16 @@ describe(`isolation between tenants ${TENANT_A} and ${TENANT_B}`, () => {
   let a: Cluster;
   let b: Cluster;
 
-  beforeAll(() => {
+  beforeAll(async () => {
     hostCluster = host();
     a = tenant(TENANT_A);
     b = tenant(TENANT_B);
-    // Without this, a "not visible in B" result could come from B's context pointing at A.
-    if (a.server === b.server) {
-      throw new Error(`contexts ${a.context} and ${b.context} share the server ${a.server}`);
+    // Without this, a "not visible in B" result could come from B pointing at A, or from
+    // a B that answers 404 to everything. Every cluster has kube-system, with its own uid.
+    const uidA = (await a.core.readNamespace({ name: 'kube-system' })).metadata?.uid;
+    const uidB = (await b.core.readNamespace({ name: 'kube-system' })).metadata?.uid;
+    if (!uidA || uidA === uidB) {
+      throw new Error(`contexts ${a.context} and ${b.context} reach the same cluster (kube-system uid ${uidA})`);
     }
   });
 
