@@ -20,11 +20,12 @@ export async function poll<T>(
   attempt: () => Promise<Attempt<T>>,
   timeoutMs: number = SHORT_TIMEOUT_MS,
 ): Promise<T> {
-  const deadline = Date.now() + timeoutMs;
+  // Monotonic clock: a system clock adjustment doesn't stretch or cut the timeout.
+  const deadline = performance.now() + timeoutMs;
   for (;;) {
     const result = await attempt();
     if (result.done) return result.value;
-    if (Date.now() >= deadline) {
+    if (performance.now() >= deadline) {
       throw new Error(`Timed out after ${timeoutMs} ms waiting for ${what}; last state: ${result.state}`);
     }
     await sleep(POLL_INTERVAL_MS);
