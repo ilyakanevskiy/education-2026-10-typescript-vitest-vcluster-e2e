@@ -63,11 +63,13 @@ describe(`isolation mode in vCluster ${VCLUSTER}`, () => {
   }) => {
     // Control: without it, "the heavy pod didn't start" could mean anything (image, node capacity).
     const okName = `ok-${suffix()}`;
-    await virtual.core.createNamespacedPod({ namespace: NAMESPACE, body: pausePod(okName) });
+    const ok = await virtual.core.createNamespacedPod({ namespace: NAMESPACE, body: pausePod(okName) });
     onTestFinished(() =>
       deleteIfExists(() => virtual.core.deleteNamespacedPod({ name: okName, namespace: NAMESPACE, gracePeriodSeconds: 0 })),
     );
     await waitForPhase(virtual.core, 'vCluster', okName, NAMESPACE, 'Running', LONG_TIMEOUT_MS);
+    // The lookup finds the control's copy, so its finding none for the heavy pod means something.
+    expect(await findHostCopy(hostCluster.core, VCLUSTER, ok), 'host copy of the plain pod').toBeDefined();
 
     // The virtual API server accepts the pod; the host's LimitRange rejects its copy.
     const heavyName = `heavy-${suffix()}`;
