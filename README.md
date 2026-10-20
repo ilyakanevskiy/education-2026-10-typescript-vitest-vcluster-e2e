@@ -24,10 +24,10 @@ What the manual exploration and the tests showed on this setup:
   that uid, since long rewritten names get truncated and hashed.
 - **Isolation mode rejects pods at two different layers.** A privileged pod is refused
   by the vCluster's own API server (PodSecurity admission, `403 Forbidden`) and never
-  exists anywhere. A pod requesting more cpu than the host LimitRange's default limit
-  is accepted by the vCluster and rejected only when the syncer creates its host copy:
-  the tenant sees the pod stuck in `Pending`, and the reason is only in a `SyncError`
-  event inside the vCluster.
+  exists anywhere. A pod without a cpu limit whose cpu request exceeds the default limit
+  the host LimitRange fills in is accepted by the vCluster and rejected only when the
+  syncer creates its host copy: the tenant sees the pod stuck in `Pending`, and the
+  reason is only in a `SyncError` event inside the vCluster.
 - **`SyncError` alone doesn't identify a policy rejection.** The syncer also reports
   transient failures it retries, such as an update conflict (`the object has been
   modified`). A test that took the first `SyncError` as the LimitRange rejection would
@@ -53,7 +53,7 @@ it fails with a message that names the cause.
 | | A namespace with a pod created directly on the host shows up in neither tenant | The host's API queried in place of a tenant's, for the namespace and for the pod |
 | [`isolation.test.ts`](test/isolation.test.ts) — isolation mode in `iso` | The host namespace has the vCluster's ResourceQuota, LimitRange and NetworkPolicy | `team-a`'s host namespace, which has none; a wrong LimitRange name; a wrong NetworkPolicy name |
 | | Existing and new namespaces carry `pod-security.kubernetes.io/enforce=baseline` | `default` read from `team-a`; `restricted` expected on the new namespace |
-| | A plain pod runs; a pod requesting more cpu than the default limit is accepted by the vCluster but never synced to the host — a `SyncError` event names the LimitRange violation | A cpu request of `500m`, within the limit; a wrong `managed-by` label in the host copy lookup |
+| | A plain pod runs; a pod without a cpu limit whose request exceeds the LimitRange's default limit is accepted by the vCluster but never synced to the host — a `SyncError` event names the LimitRange violation | A cpu request of `500m`, within the limit; a wrong `managed-by` label in the host copy lookup |
 | | A privileged pod is rejected by the vCluster's API server with 403 and exists on neither side | `privileged: false` |
 
 Each test creates its resources under a random suffix and removes them afterwards,
