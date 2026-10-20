@@ -38,10 +38,11 @@ What the manual exploration and the tests showed on this setup:
   for `team-b`'s syncer service account allows listing pods in `vcluster-team-b` and
   denies listing pods and reading secrets in `vcluster-team-a`.
 
-The pod sync, namespace, CRD, cpu-limit and privileged-pod tests were also run against
-a deliberately broken expectation (`team-b`'s client pointed at `team-a`, a wrong
-`managed-by` label, a cpu request within the limit, a non-privileged pod) to confirm
-they fail with a message that names the cause.
+Every test was also run against a deliberately broken expectation, to confirm it fails
+with a message that names the cause: `team-b`'s client pointed at `team-a`, a wrong
+`managed-by` label, a wrong syncer service account, the host's API queried in place of
+a tenant's, policy objects and Pod Security labels looked up in `team-a`, which runs
+without isolation mode, a cpu request within the limit, a non-privileged pod.
 
 ### Limitations
 
