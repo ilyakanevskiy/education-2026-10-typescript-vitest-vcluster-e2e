@@ -46,20 +46,35 @@ export async function findHostCopy(hostCore: CoreV1Api, vcluster: string, virtua
   return copies.find((pod) => pod.metadata?.annotations?.[OBJECT_UID] === virtualPod.metadata?.uid);
 }
 
-export const waitForPhase = (
+/**
+ * Waits for a pod to reach `phase`. Only 404 before the pod first shows up and
+ * `Pending` count as on the way there; any other phase, or the pod disappearing,
+ * fails at once.
+ */
+export function waitForPhase(
   core: CoreV1Api,
   where: string,
   name: string,
   namespace: string,
   phase: string,
   timeoutMs?: number,
-): Promise<V1Pod> =>
-  poll(
-    `${where} pod ${namespace}/${name} to reach ${phase}`,
+): Promise<V1Pod> {
+  const what = `${where} pod ${namespace}/${name} to reach ${phase}`;
+  let seen = false;
+  return poll(
+    what,
     async (): Promise<Attempt<V1Pod>> => {
       const pod = await readOrNull(() => core.readNamespacedPod({ name, namespace }));
-      if (!pod) return pending('404');
-      return pod.status?.phase === phase ? done(pod) : pending(describePod(pod));
+      if (!pod) {
+        if (seen) throw new Error(`${where} pod ${namespace}/${name} disappeared while waiting for ${phase}`);
+        return pending('404');
+      }
+      seen = true;
+      const current = pod.status?.phase;
+      if (current === phase) return done(pod);
+      if (current === undefined || current === 'Pending') return pending(describePod(pod));
+      throw new Error(`waiting for ${what}, got ${describePod(pod)}`);
     },
     timeoutMs,
   );
+}
