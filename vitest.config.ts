@@ -3,6 +3,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     include: ['test/**/*.test.ts'],
+    globalSetup: ['test/preflight.ts'],
     // All files talk to the same host cluster and vClusters.
     fileParallelism: false,
     // Above the sum of the poll timeouts in any one test (330 s in sync.test.ts), so a

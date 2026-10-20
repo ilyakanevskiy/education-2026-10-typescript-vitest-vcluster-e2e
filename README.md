@@ -149,4 +149,6 @@ npm test
 ```
 
 `npm test` type-checks the code first: Vitest itself runs TypeScript without checking
-types.
+types. Before the first test file, [`test/preflight.ts`](test/preflight.ts) reads from the
+host and each vCluster and, if one doesn't answer, names the command that brings it
+back.
