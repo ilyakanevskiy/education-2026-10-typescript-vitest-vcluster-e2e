@@ -47,9 +47,9 @@ it fails with a message that names the cause.
 | File | Test | Broken on purpose |
 |---|---|---|
 | [`sync.test.ts`](test/sync.test.ts) — pod sync in `team-a` | A pod created in the vCluster gets a copy in the host namespace, both reach `Running`, and deleting the pod in the vCluster removes the host copy | Wrong `managed-by` label in the host copy lookup |
-| [`tenants.test.ts`](test/tenants.test.ts) — isolation between `team-a` and `team-b` | A namespace created in `team-a` is not visible in `team-b` | `team-b`'s client pointed at `team-a` |
+| [`tenants.test.ts`](test/tenants.test.ts) — isolation between `team-a` and `team-b` | A namespace created in `team-a` is not visible in `team-b` | `team-b`'s client pointed at `team-a`: the file's tenant check fails first, since both clients see the same `kube-system` uid |
 | | `team-b`'s syncer service account may list pods in its own host namespace, but neither list pods nor read secrets in `team-a`'s (SubjectAccessReview) | Wrong service account name; `team-b`'s own namespace checked in place of `team-a`'s |
-| | A CRD installed in `team-a` exists neither in `team-b` nor on the host | `team-b`'s client pointed at `team-a` |
+| | A CRD installed in `team-a` exists neither in `team-b` nor on the host | `team-b`'s client pointed at `team-a`, caught by the same tenant check |
 | | A namespace with a pod created directly on the host shows up in neither tenant | The host's API queried in place of a tenant's, for the namespace and for the pod |
 | [`isolation.test.ts`](test/isolation.test.ts) — isolation mode in `iso` | The host namespace has the vCluster's ResourceQuota, LimitRange and NetworkPolicy | `team-a`'s host namespace, which has none; a wrong LimitRange name; a wrong NetworkPolicy name |
 | | Existing and new namespaces carry `pod-security.kubernetes.io/enforce=baseline` | `default` read from `team-a`; `restricted` expected on the new namespace |
