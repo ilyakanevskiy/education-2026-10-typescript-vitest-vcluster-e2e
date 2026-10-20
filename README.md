@@ -147,3 +147,6 @@ With the [test environment](#test-environment) up:
 npm ci
 npm test
 ```
+
+`npm test` type-checks the code first: Vitest itself runs TypeScript without checking
+types.
