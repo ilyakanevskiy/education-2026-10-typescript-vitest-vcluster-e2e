@@ -1,0 +1,9 @@
+# vCluster config for iso: the policies block of loft-sh/vcluster's e2e/vcluster-isolation-mode.yaml.
+policies:
+  podSecurityStandard: baseline
+  resourceQuota:
+    enabled: true
+  limitRange:
+    enabled: true
+  networkPolicy:
+    enabled: true
