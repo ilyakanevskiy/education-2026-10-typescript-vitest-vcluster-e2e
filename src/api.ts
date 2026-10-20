@@ -24,6 +24,20 @@ export interface ApiStatus {
 }
 
 /**
+ * Reads the `Status` from an error response body. A body that isn't JSON (a proxy's
+ * error page, plain text) becomes the message as is, so assertions on it still show
+ * what came back.
+ */
+function parseStatus(body: unknown): Partial<ApiStatus> {
+  if (typeof body !== 'string') return (body ?? {}) as Partial<ApiStatus>;
+  try {
+    return JSON.parse(body) as Partial<ApiStatus>;
+  } catch {
+    return { message: body };
+  }
+}
+
+/**
  * Runs a call that the API server is expected to reject and returns the rejection's
  * `Status`. A call that succeeds, or fails without an API response, fails the test.
  */
@@ -32,8 +46,7 @@ export async function rejection(call: () => Promise<unknown>): Promise<ApiStatus
     await call();
   } catch (error) {
     if (!(error instanceof ApiException)) throw error;
-    const body: unknown = typeof error.body === 'string' ? JSON.parse(error.body) : error.body;
-    const status = (body ?? {}) as Partial<ApiStatus>;
+    const status = parseStatus(error.body);
     return { code: error.code, reason: status.reason, message: status.message };
   }
   throw new Error('expected the API server to reject the call, but it succeeded');
