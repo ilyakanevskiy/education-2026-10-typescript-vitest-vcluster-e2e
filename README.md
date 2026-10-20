@@ -9,6 +9,50 @@ The tests check what a tenant sees inside a virtual cluster against what actuall
 happens on the host: pod sync, API isolation between tenants, and the policies of
 vCluster's isolation mode.
 
+The test design follows a manual exploration of the same setup with `kubectl`; the
+code was written together with Claude Code under the rules in [`AGENTS.md`](AGENTS.md).
+
+## Findings
+
+What the manual exploration and the tests showed on this setup:
+
+- **Only pods reach the host.** A Deployment and its ReplicaSet exist in the vCluster
+  only; the host namespace gets the pods, renamed to `<pod>-x-<namespace>-x-<vcluster>`.
+  The syncer labels each copy with `vcluster.loft.sh/managed-by` and records the
+  virtual pod's uid in `vcluster.loft.sh/object-uid`. The tests match host copies by
+  that uid, since long rewritten names get truncated and hashed.
+- **Isolation mode rejects pods at two different layers.** A privileged pod is refused
+  by the vCluster's own API server (PodSecurity admission, `403 Forbidden`) and never
+  exists anywhere. A pod requesting more cpu than the host LimitRange's default limit
+  is accepted by the vCluster and rejected only when the syncer creates its host copy:
+  the tenant sees the pod stuck in `Pending`, and the reason is only in a `SyncError`
+  event inside the vCluster.
+- **`SyncError` alone doesn't identify a policy rejection.** The syncer also reports
+  transient failures it retries, such as an update conflict (`the object has been
+  modified`). A test that took the first `SyncError` as the LimitRange rejection would
+  be flaky, so the test matches the event's reason and the LimitRange message.
+- **Cluster-scoped resources are per tenant.** A CRD installed in one vCluster is
+  `Established` there and exists neither in the other vCluster nor on the host, which
+  namespace-based multi-tenancy can't provide.
+- **On the host, each syncer is confined to its own namespace.** A SubjectAccessReview
+  for `team-b`'s syncer service account allows listing pods in `vcluster-team-b` and
+  denies listing pods and reading secrets in `vcluster-team-a`.
+
+The pod sync, namespace, CRD, cpu-limit and privileged-pod tests were also run against
+a deliberately broken expectation (`team-b`'s client pointed at `team-a`, a wrong
+`managed-by` label, a cpu request within the limit, a non-privileged pod) to confirm
+they fail with a message that names the cause.
+
+### Limitations
+
+- The tests cover API isolation and host-side policies. In Shared Nodes, pods of
+  different tenants share a node and its kernel, and the NetworkPolicy is checked for
+  presence only, not for actually blocking traffic.
+- "Never synced" and "never shows up in a tenant" are checked at one point in time,
+  after the related pod or event appeared, not proven for all time.
+- The host has a single node, so node failures and scheduling across nodes are out of
+  scope.
+
 ## Prerequisites
 
 Versions the tests were run with; nearby versions should work too.
@@ -89,6 +133,8 @@ Each test creates its resources under a random suffix and removes them afterward
 also when it fails. Files run one after another, since they share the same clusters.
 
 ## Run
+
+With the [test environment](#test-environment) up:
 
 ```shell
 npm ci
