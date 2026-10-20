@@ -16,8 +16,9 @@ code was written together with Claude Code under the rules in [`AGENTS.md`](AGEN
 
 What the manual exploration and the tests showed on this setup:
 
-- **Only pods reach the host.** A Deployment and its ReplicaSet exist in the vCluster
-  only; the host namespace gets the pods, renamed to `<pod>-x-<namespace>-x-<vcluster>`.
+- **Pods reach the host, their controllers don't.** A Deployment and its ReplicaSet
+  exist in the vCluster only; the host namespace gets the pods, renamed to
+  `<pod>-x-<namespace>-x-<vcluster>`.
   The syncer labels each copy with `vcluster.loft.sh/managed-by` and records the
   virtual pod's uid in `vcluster.loft.sh/object-uid`. The tests match host copies by
   that uid, since long rewritten names get truncated and hashed.
@@ -31,12 +32,12 @@ What the manual exploration and the tests showed on this setup:
   transient failures it retries, such as an update conflict (`the object has been
   modified`). A test that took the first `SyncError` as the LimitRange rejection would
   be flaky, so the test matches the event's reason and the LimitRange message.
-- **Cluster-scoped resources are per tenant.** A CRD installed in one vCluster is
-  `Established` there and exists neither in the other vCluster nor on the host, which
-  namespace-based multi-tenancy can't provide.
-- **On the host, each syncer is confined to its own namespace.** A SubjectAccessReview
-  for `team-b`'s syncer service account allows listing pods in `vcluster-team-b` and
-  denies listing pods and reading secrets in `vcluster-team-a`.
+- **CRDs are per tenant.** A CRD installed in one vCluster is `Established` there and
+  exists neither in the other vCluster nor on the host, which namespace-based
+  multi-tenancy can't provide.
+- **On the host, `team-b`'s syncer can't reach `team-a`'s namespace.** A
+  SubjectAccessReview for `team-b`'s syncer service account allows listing pods in
+  `vcluster-team-b` and denies listing pods and reading secrets in `vcluster-team-a`.
 
 Every test was also run against a deliberately broken expectation, to confirm it fails
 with a message that names the cause: `team-b`'s client pointed at `team-a`, a wrong
@@ -46,9 +47,7 @@ without isolation mode, a cpu request within the limit, a non-privileged pod.
 
 ### Limitations
 
-- The tests cover API isolation and host-side policies. In Shared Nodes, pods of
-  different tenants share a node and its kernel, and the NetworkPolicy is checked for
-  presence only, not for actually blocking traffic.
+- The NetworkPolicy is checked for presence only, not for actually blocking traffic.
 - "Never synced" and "never shows up in a tenant" are checked at one point in time,
   after the related pod or event appeared, not proven for all time.
 - The host has a single node, so node failures and scheduling across nodes are out of
