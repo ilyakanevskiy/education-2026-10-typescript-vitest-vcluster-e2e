@@ -46,6 +46,23 @@ export async function findHostCopy(hostCore: CoreV1Api, vcluster: string, virtua
   return copies.find((pod) => pod.metadata?.annotations?.[OBJECT_UID] === virtualPod.metadata?.uid);
 }
 
+/** Waits until reading the pod answers 404. */
+export const waitForDeletion = (
+  core: CoreV1Api,
+  where: string,
+  name: string,
+  namespace: string,
+  timeoutMs?: number,
+): Promise<void> =>
+  poll(
+    `${where} pod ${namespace}/${name} to be deleted`,
+    async (): Promise<Attempt<void>> => {
+      const pod = await readOrNull(() => core.readNamespacedPod({ name, namespace }));
+      return pod ? pending(describePod(pod)) : done(undefined);
+    },
+    timeoutMs,
+  );
+
 /**
  * Waits for a pod to reach `phase`. Only 404 before the pod first shows up and
  * `Pending` count as on the way there; any other phase, or the pod disappearing,

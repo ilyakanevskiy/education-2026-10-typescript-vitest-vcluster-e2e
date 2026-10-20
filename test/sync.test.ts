@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { deleteIfExists, readOrNull } from '../src/api.js';
+import { deleteIfExists } from '../src/api.js';
 import { host, hostNamespace, suffix, tenant } from '../src/clusters.js';
 import {
-  describePod,
   findHostCopy,
   OBJECT_NAME,
   OBJECT_NAMESPACE,
   OBJECT_UID,
   pausePod,
+  waitForDeletion,
   waitForPhase,
 } from '../src/pods.js';
 import { done, LONG_TIMEOUT_MS, pending, poll } from '../src/poll.js';
@@ -44,15 +44,7 @@ describe(`pod sync in vCluster ${VCLUSTER}`, () => {
 
     // Stage 3: deleting in the vCluster removes the host copy.
     await virtual.core.deleteNamespacedPod({ name, namespace: NAMESPACE, gracePeriodSeconds: 0 });
-    await poll(`vCluster pod ${NAMESPACE}/${name} to be deleted`, async () => {
-      const pod = await readOrNull(() => virtual.core.readNamespacedPod({ name, namespace: NAMESPACE }));
-      return pod ? pending(describePod(pod)) : done(undefined);
-    });
-    await poll(`host copy ${hostName} to be deleted`, async () => {
-      const pod = await readOrNull(() =>
-        hostCluster.core.readNamespacedPod({ name: hostName, namespace: hostNamespace(VCLUSTER) }),
-      );
-      return pod ? pending(describePod(pod)) : done(undefined);
-    });
+    await waitForDeletion(virtual.core, 'vCluster', name, NAMESPACE);
+    await waitForDeletion(hostCluster.core, 'host', hostName, hostNamespace(VCLUSTER));
   });
 });
