@@ -42,8 +42,9 @@ describe(`pod sync in vCluster ${VCLUSTER}`, () => {
     await waitForPhase(hostCluster.core, 'host', hostName, hostNamespace(VCLUSTER), 'Running', LONG_TIMEOUT_MS);
     await waitForPhase(virtual.core, 'vCluster', name, NAMESPACE, 'Running', LONG_TIMEOUT_MS);
 
-    // Stage 3: deleting in the vCluster removes the host copy.
-    await virtual.core.deleteNamespacedPod({ name, namespace: NAMESPACE, gracePeriodSeconds: 0 });
+    // Stage 3: deleting in the vCluster removes the host copy. The delete is graceful,
+    // the way `kubectl delete` does it; only cleanup forces it.
+    await virtual.core.deleteNamespacedPod({ name, namespace: NAMESPACE });
     await waitForDeletion(virtual.core, 'vCluster', name, NAMESPACE);
     await waitForDeletion(hostCluster.core, 'host', hostName, hostNamespace(VCLUSTER));
   });
