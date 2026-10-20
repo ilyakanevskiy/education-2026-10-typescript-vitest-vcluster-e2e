@@ -17,7 +17,7 @@ only adds testing conventions and collaboration rules.
 ## Test environment
 
 - Tests run against vClusters created by hand beforehand (`team-a`, `team-b`, `iso`,
-  see README) on a kind host cluster. Tests don't create or delete vClusters, and they
+  see README) on a `kind` host cluster. Tests don't create or delete vClusters, and they
   never touch shared vCluster settings (quotas, policies).
 - Clients are built from explicitly named kubeconfig contexts. Never read or change
   the current context — `vcluster connect` switches it, and the tests must not depend
