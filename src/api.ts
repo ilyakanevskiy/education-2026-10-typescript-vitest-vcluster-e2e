@@ -24,17 +24,23 @@ export interface ApiStatus {
 }
 
 /**
- * Reads the `Status` from an error response body. A body that isn't JSON (a proxy's
- * error page, plain text) becomes the message as is, so assertions on it still show
- * what came back.
+ * Reads the `Status` from an error response body. A body that isn't a `Status` (a
+ * proxy's error page, plain text, other JSON) becomes the message as is, so assertions
+ * on it still show what came back.
  */
 function parseStatus(body: unknown): Partial<ApiStatus> {
-  if (typeof body !== 'string') return (body ?? {}) as Partial<ApiStatus>;
-  try {
-    return JSON.parse(body) as Partial<ApiStatus>;
-  } catch {
-    return { message: body };
+  let parsed = body;
+  if (typeof body === 'string') {
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      return { message: body };
+    }
   }
+  if (typeof parsed === 'object' && parsed !== null && 'message' in parsed) {
+    return parsed as Partial<ApiStatus>;
+  }
+  return { message: typeof body === 'string' ? body : JSON.stringify(body) };
 }
 
 /**
