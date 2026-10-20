@@ -1,5 +1,6 @@
 import type { CoreV1Api, V1Pod } from '@kubernetes/client-node';
 import { readOrNull } from './api.js';
+import { hostNamespace } from './clusters.js';
 import { done, pending, poll, type Attempt } from './poll.js';
 
 /** Small image that is already on the kind node and starts immediately. */
@@ -18,24 +19,31 @@ export function pausePod(name: string, overrides: Partial<V1Pod['spec']> = {}): 
 export const describePod = (pod: V1Pod): string =>
   `${pod.metadata?.namespace}/${pod.metadata?.name} phase=${pod.status?.phase ?? '<none>'}`;
 
+/** Annotations the syncer puts on a host copy, pointing back at the virtual pod. */
+export const OBJECT_UID = 'vcluster.loft.sh/object-uid';
+export const OBJECT_NAME = 'vcluster.loft.sh/object-name';
+export const OBJECT_NAMESPACE = 'vcluster.loft.sh/object-namespace';
+
 /**
- * Finds the host copy of a vCluster pod. The syncer labels it with the owning vCluster
- * and the virtual namespace, and records the virtual pod's uid in an annotation; the
- * uid is matched instead of the rewritten name, which gets truncated and hashed when long.
+ * Lists the host copies of pods from one virtual namespace. The syncer labels each
+ * copy with the owning vCluster and the virtual namespace.
  */
-export async function findHostCopy(
-  hostCore: CoreV1Api,
-  hostNamespace: string,
-  vcluster: string,
-  virtualPod: V1Pod,
-): Promise<V1Pod | undefined> {
+export async function listHostCopies(hostCore: CoreV1Api, vcluster: string, namespace: string): Promise<V1Pod[]> {
   const list = await hostCore.listNamespacedPod({
-    namespace: hostNamespace,
-    labelSelector: `vcluster.loft.sh/managed-by=${vcluster},vcluster.loft.sh/namespace=${virtualPod.metadata?.namespace}`,
+    namespace: hostNamespace(vcluster),
+    labelSelector: `vcluster.loft.sh/managed-by=${vcluster},vcluster.loft.sh/namespace=${namespace}`,
   });
-  return list.items.find(
-    (pod) => pod.metadata?.annotations?.['vcluster.loft.sh/object-uid'] === virtualPod.metadata?.uid,
-  );
+  return list.items;
+}
+
+/**
+ * Finds the host copy of a vCluster pod by the virtual pod's uid, which the syncer
+ * records in an annotation; the uid is matched instead of the rewritten name, which
+ * gets truncated and hashed when long.
+ */
+export async function findHostCopy(hostCore: CoreV1Api, vcluster: string, virtualPod: V1Pod): Promise<V1Pod | undefined> {
+  const copies = await listHostCopies(hostCore, vcluster, virtualPod.metadata!.namespace!);
+  return copies.find((pod) => pod.metadata?.annotations?.[OBJECT_UID] === virtualPod.metadata?.uid);
 }
 
 export const waitForPhase = (

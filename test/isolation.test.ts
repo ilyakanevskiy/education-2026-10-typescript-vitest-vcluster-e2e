@@ -2,7 +2,15 @@ import { NetworkingV1Api, type CoreV1Event } from '@kubernetes/client-node';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { deleteIfExists, readOrNull, rejection } from '../src/api.js';
 import { host, hostNamespace, suffix, tenant, type Cluster } from '../src/clusters.js';
-import { describePod, findHostCopy, PAUSE_IMAGE, pausePod, waitForPhase } from '../src/pods.js';
+import {
+  describePod,
+  findHostCopy,
+  listHostCopies,
+  OBJECT_NAME,
+  PAUSE_IMAGE,
+  pausePod,
+  waitForPhase,
+} from '../src/pods.js';
 import { done, LONG_TIMEOUT_MS, pending, poll } from '../src/poll.js';
 
 // The vCluster created from manual/isolation.yaml.
@@ -94,7 +102,7 @@ describe(`isolation mode in vCluster ${VCLUSTER}`, () => {
 
     const current = await virtual.core.readNamespacedPod({ name: heavyName, namespace: NAMESPACE });
     expect(current.status?.phase, describePod(current)).toBe('Pending');
-    expect(await findHostCopy(hostCluster.core, hostNamespace(VCLUSTER), VCLUSTER, heavy), 'host copy of the heavy pod').toBeUndefined();
+    expect(await findHostCopy(hostCluster.core, VCLUSTER, heavy), 'host copy of the heavy pod').toBeUndefined();
   });
 
   it('rejects a privileged pod at the virtual API server', async ({ onTestFinished }) => {
@@ -117,11 +125,8 @@ describe(`isolation mode in vCluster ${VCLUSTER}`, () => {
     expect(status.message, 'rejected by PodSecurity admission').toContain('violates PodSecurity "baseline');
 
     expect(await readOrNull(() => virtual.core.readNamespacedPod({ name, namespace: NAMESPACE })), 'pod in the vCluster').toBeNull();
-    const onHost = await hostCluster.core.listNamespacedPod({
-      namespace: hostNamespace(VCLUSTER),
-      labelSelector: `vcluster.loft.sh/managed-by=${VCLUSTER},vcluster.loft.sh/namespace=${NAMESPACE}`,
-    });
-    const copies = onHost.items.filter((p) => p.metadata?.annotations?.['vcluster.loft.sh/object-name'] === name);
+    const onHost = await listHostCopies(hostCluster.core, VCLUSTER, NAMESPACE);
+    const copies = onHost.filter((p) => p.metadata?.annotations?.[OBJECT_NAME] === name);
     expect(copies.map((p) => p.metadata?.name), 'host copies of the privileged pod').toEqual([]);
   });
 });
